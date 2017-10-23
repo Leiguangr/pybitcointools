@@ -51,7 +51,7 @@ def deserialize(tx):
     # Python's scoping rules are demented, requiring me to make pos an object
     # so that it is call-by-reference
     pos = [0]
-
+    segwit_flag = 0;
     def read_as_int(bytez):
         pos[0] += bytez
         return decode(tx[pos[0]-bytez:pos[0]][::-1], 256)
@@ -72,8 +72,16 @@ def deserialize(tx):
         size = read_var_int()
         return read_bytes(size)
 
-    obj = {"ins": [], "outs": []}
+    def check_segwit():
+        segwit_num = struct.unpack(">H", tx[pos[0]:pos[0]+2]);
+        if segwit_num == 1:
+            segwit_flag = 1;
+            pos[0] += 2;
+
+
+    obj = {"ins": [], "outs": [], "witness":[]}
     obj["version"] = read_as_int(4)
+    check_segwit();
     ins = read_var_int()
     for i in range(ins):
         obj["ins"].append({
@@ -90,6 +98,16 @@ def deserialize(tx):
             "value": read_as_int(8),
             "script": read_var_string()
         })
+
+    if segwit_flag:
+        witness_ins = read_var_int();
+        for i in range(witness_ins):
+            obj["witness"].append(
+                {
+                    "component": read_var_string()
+                }
+            )
+
     obj["locktime"] = read_as_int(4)
     return obj
 
